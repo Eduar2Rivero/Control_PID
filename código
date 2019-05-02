@@ -1,0 +1,96 @@
+
+#include <PID_v1.h>
+#include <LiquidCrystal.h>
+#include "TimerOne.h"
+
+
+// Desarrollado por Christian A. Vazquez par arduinomexico.com
+
+int potenciometro = A0;    // select the input pin for the potentiometer
+int potdigital ;  // 
+int salidaPWM = 10;  // salida de señal PWM
+int Interruptor = 0;          // El interruptor a utilizar sera el 0 es decir el pin digital 2
+long cuentat = 0;  
+int pulsos=0;   // variable para contar los pulsos en 1 segundo
+int resolucion = 24;  // pulsos por revolución del encoder
+
+
+//Define Variables we'll be connecting to
+double rpm,Setpoint,Output;
+
+//Specify the links and initial tuning parameters
+double Kp=2, Ki=5, Kd=1;
+PID myPID(&rpm, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
+
+
+LiquidCrystal lcd(12,11, 6, 5, 4, 3);
+
+// pin 4 de la LCD (RS)---> pin 7 del arduino (salida digital, PWM)
+// pin 5 de la LCD (RW) --> GND de la breadboard (fila -)
+// pin 6 de la LCD (E)--> pin 8 de la placa Arduino UNO (PWM)
+// pin 11 de la LCD (D4)--> pin 9 de la placa Arduino UNO (PWM)
+// pin 12 de la LCD (D5)--> pin 10 de la placa Arduino UNO (PWM)
+// pin 13 de la LCD (D6)--> pin 11 de la placa Arduino UNO (PWM)
+// pin 14 de la LCD (D7)--> pin 12 de la placa Arduino UNO (PWM)
+
+
+//Esta seria nuestra funcion interrupcion exte.
+void interrupcion_isr()
+{  
+  pulsos=pulsos+1;
+}
+
+
+void ISR_timer () { 
+ cuentat=cuentat+1;
+}
+
+void setup() {
+  // declare the ledPin as an OUTPUT:
+ // Serial.begin(9600);
+  pinMode(salidaPWM, OUTPUT);  // decimos que pinOut es salida
+  
+  lcd.begin(16,2); 
+  
+  Timer1.initialize(1000);      // Dispara cada 1000 us = 1 ms
+  Timer1.attachInterrupt(ISR_timer); // Activa la interrupcion y la asocia a ISR_Blink
+  
+  //Adjuntamos al interruptor 0 ( pin 2 ) la funcion cambios, cuando suceda un CHANGE
+  attachInterrupt(Interruptor, interrupcion_isr, LOW);
+  
+    Setpoint = 20; // velocidad referencia
+
+  //turn the PID on
+  myPID.SetMode(AUTOMATIC);
+  
+ 
+}
+void loop() {
+  // read the value from the sensor:
+  
+ // potdigital = analogRead(potenciometro); 
+ // potdigital = map(potdigital, 0, 1023, 0, 255);
+  
+//  analogWrite(salidaPWM,potdigital);
+  myPID.Compute();
+  
+  Timer1.pwm(salidaPWM, Output,1000);
+ 
+ // Timer1.disablePwm(salidaPWM); 
+  // Serial.println(potdigital);
+  
+  if(cuentat==1000){
+    
+    rpm=((double)pulsos/resolucion)*60; 
+   // lcd.begin(16,2);              // columns, rows.  use 16,2 for a 16x2 LCD, etc.
+    lcd.clear();                  // start with a blank screen
+    lcd.setCursor(0,0);            
+    lcd.print(rpm);
+    
+    pulsos=0;
+    cuentat=0;
+    
+}
+
+  
+}
